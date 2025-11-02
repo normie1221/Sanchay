@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, PieChart as PieChartIcon } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, IndianRupee, PieChart as PieChartIcon } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
 import { PieChart, Pie, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
@@ -103,7 +103,7 @@ export default function AnalyticsPage() {
               <div className="bg-white rounded-2xl shadow-xl p-6">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-gray-600 text-sm">Net Savings</p>
-                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  <IndianRupee className="w-5 h-5 text-blue-600" />
                 </div>
                 <p className="text-3xl font-bold text-blue-600">
                   ₹{(analytics.summary.netSavings || 0).toFixed(2)}
