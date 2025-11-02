@@ -1,0 +1,12 @@
+{
+  "buildCommand": "cd finance && npm run build",
+  "outputDirectory": "finance/.next",
+  "framework": "nextjs",
+  "installCommand": "cd finance && npm install",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/finance/$1"
+    }
+  ]
+}
