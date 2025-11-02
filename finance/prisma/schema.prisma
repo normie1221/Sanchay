@@ -1,0 +1,333 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                String              @id @default(uuid())
+  clerkId           String              @unique
+  email             String              @unique
+  firstName         String?
+  lastName          String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  incomes           Income[]
+  expenses          Expense[]
+  goals             FinancialGoal[]
+  budgets           Budget[]
+  insights          Insight[]
+  fraudAlerts       FraudAlert[]
+  userBehavior      UserBehavior[]
+  reports           Report[]
+  
+  @@index([clerkId])
+  @@index([email])
+}
+
+model Income {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amount      Float
+  source      String
+  description String?
+  category    IncomeCategory @default(SALARY)
+  frequency   Frequency      @default(MONTHLY)
+  date        DateTime
+  isRecurring Boolean        @default(false)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([date])
+}
+
+model Expense {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amount      Float
+  category    String
+  description String?
+  merchant    String?
+  paymentMethod String?
+  location    String?
+  date        DateTime
+  isRecurring Boolean   @default(false)
+  tags        String[]
+  
+  // AI-related fields
+  aiCategory  String?   // AI-predicted category
+  confidence  Float?    // Confidence score for AI categorization
+  
+  // Fraud detection
+  isSuspicious Boolean  @default(false)
+  riskScore   Float?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([date])
+  @@index([category])
+  @@index([isSuspicious])
+}
+
+model FinancialGoal {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name          String
+  description   String?
+  targetAmount  Float
+  currentAmount Float       @default(0)
+  deadline      DateTime?
+  priority      Priority    @default(MEDIUM)
+  category      GoalCategory
+  status        GoalStatus  @default(IN_PROGRESS)
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+}
+
+model Budget {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  category    String
+  limit       Float
+  spent       Float       @default(0)
+  period      BudgetPeriod @default(MONTHLY)
+  startDate   DateTime
+  endDate     DateTime
+  
+  // AI-generated budget
+  isAiGenerated Boolean   @default(false)
+  aiConfidence  Float?
+  
+  alerts      Boolean     @default(true)
+  alertThreshold Float    @default(80) // Alert when 80% of budget is used
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@index([userId])
+  @@index([category])
+  @@index([startDate, endDate])
+}
+
+model Insight {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        InsightType
+  title       String
+  description String
+  priority    Priority    @default(MEDIUM)
+  category    String?
+  
+  // AI-generated data
+  data        Json?       // Structured data for the insight
+  actionable  Boolean     @default(false)
+  isRead      Boolean     @default(false)
+  
+  createdAt   DateTime    @default(now())
+  expiresAt   DateTime?
+  
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model FraudAlert {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  expenseId   String?     // Related expense if applicable
+  alertType   FraudAlertType
+  severity    Severity
+  description String
+  riskScore   Float
+  
+  // Detection details
+  detectionMethod String?  // e.g., "anomaly_detection", "behavioral_analysis"
+  features    Json?       // Features that triggered the alert
+  
+  status      AlertStatus @default(PENDING)
+  resolvedAt  DateTime?
+  resolution  String?
+  
+  createdAt   DateTime    @default(now())
+  
+  @@index([userId])
+  @@index([status])
+  @@index([severity])
+}
+
+model UserBehavior {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Behavioral patterns for fraud detection
+  avgTransactionAmount Float?
+  transactionFrequency Float?
+  commonMerchants      String[]
+  commonLocations      String[]
+  commonCategories     String[]
+  usualTransactionTime String?  // e.g., "morning", "evening"
+  
+  lastUpdated DateTime  @updatedAt
+  createdAt   DateTime  @default(now())
+  
+  @@unique([userId])
+}
+
+model Report {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        ReportType
+  title       String
+  format      ReportFormat @default(PDF)
+  
+  // Report parameters
+  startDate   DateTime
+  endDate     DateTime
+  categories  String[]
+  
+  // File information
+  fileUrl     String?
+  fileSize    Int?
+  
+  generatedAt DateTime    @default(now())
+  
+  @@index([userId])
+  @@index([type])
+}
+
+// Enums
+enum IncomeCategory {
+  SALARY
+  BUSINESS
+  INVESTMENT
+  FREELANCE
+  GIFT
+  OTHER
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ONE_TIME
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum GoalCategory {
+  SAVINGS
+  INVESTMENT
+  DEBT_PAYMENT
+  EMERGENCY_FUND
+  RETIREMENT
+  PURCHASE
+  EDUCATION
+  OTHER
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum BudgetPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum InsightType {
+  SPENDING_PATTERN
+  SAVINGS_OPPORTUNITY
+  BUDGET_ALERT
+  INVESTMENT_SUGGESTION
+  GOAL_PROGRESS
+  FINANCIAL_HEALTH
+  PREDICTION
+  EDUCATION
+}
+
+enum FraudAlertType {
+  UNUSUAL_AMOUNT
+  UNUSUAL_LOCATION
+  UNUSUAL_MERCHANT
+  UNUSUAL_FREQUENCY
+  DUPLICATE_TRANSACTION
+  HIGH_RISK_CATEGORY
+  BEHAVIORAL_ANOMALY
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  PENDING
+  INVESTIGATING
+  CONFIRMED
+  FALSE_POSITIVE
+  RESOLVED
+}
+
+enum ReportType {
+  MONTHLY_SUMMARY
+  EXPENSE_ANALYSIS
+  INCOME_ANALYSIS
+  BUDGET_REPORT
+  GOAL_PROGRESS
+  TAX_REPORT
+  CUSTOM
+}
+
+enum ReportFormat {
+  PDF
+  CSV
+  EXCEL
+  JSON
+}
