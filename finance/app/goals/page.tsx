@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { ArrowLeft, Plus, Target, TrendingUp, Calendar, DollarSign } from 'lucide-react';
+import { ArrowLeft, Plus, Target, TrendingUp, Calendar, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
 import { format, differenceInDays } from 'date-fns';
@@ -200,7 +200,7 @@ export default function GoalsPage() {
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                       <div>
                         <div className="flex items-center gap-2 text-gray-600 mb-1">
-                          <DollarSign className="w-4 h-4" />
+                          <IndianRupee className="w-4 h-4" />
                           <span className="text-sm">Current</span>
                         </div>
                         <p className="text-xl font-bold text-green-600">
