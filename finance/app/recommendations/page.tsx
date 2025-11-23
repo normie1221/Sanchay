@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { Sparkles, TrendingUp, PiggyBank, Target, AlertCircle, CheckCircle, Lightbulb, RefreshCw, ArrowRight } from 'lucide-react';
+import { Sparkles, TrendingUp, PiggyBank, Target, AlertCircle, CheckCircle, Lightbulb, RefreshCw, ArrowRight, MessageCircle, Send, Bot, User } from 'lucide-react';
 import axios from 'axios';
 import Link from 'next/link';
 import NavigationButtons from '@/components/NavigationButtons';
@@ -27,6 +27,20 @@ interface SavingsInsight {
   percentageReduction: number;
 }
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+interface FinancialSummary {
+  goal: string;
+  progress: string;
+  monthlyIncome: number;
+  totalExpenses: number;
+  savingsRate: string;
+}
+
 export default function AIRecommendationsPage() {
   const { isLoaded, isSignedIn } = useUser();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -34,12 +48,29 @@ export default function AIRecommendationsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  
+  // Chat state
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
+  const [advisorType, setAdvisorType] = useState<'general' | 'purchase' | 'spending' | 'budget'>('general');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isSignedIn) {
       fetchRecommendations();
     }
   }, [isSignedIn]);
+
+  useEffect(() => {
+    // Scroll to bottom when new messages arrive
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
 
   const fetchRecommendations = async () => {
     setRefreshing(true);
@@ -94,6 +125,64 @@ export default function AIRecommendationsPage() {
 
   const totalPotentialSavings = savingsInsights.reduce((sum, insight) => sum + insight.potentialSavings, 0);
 
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: chatInput,
+      timestamp: new Date(),
+    };
+
+    setChatMessages((prev) => [...prev, userMessage]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const response = await axios.post('/api/ai-advisor', {
+        query: chatInput,
+        type: advisorType,
+      });
+
+      const data = response.data.data;
+      const aiMessage: ChatMessage = {
+        role: 'assistant',
+        content: data.advice,
+        timestamp: new Date(),
+      };
+
+      setChatMessages((prev) => [...prev, aiMessage]);
+      
+      if (data.financialSummary) {
+        setFinancialSummary(data.financialSummary);
+      }
+    } catch (error) {
+      console.error('Error getting AI advice:', error);
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.',
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  };
+
+  const quickQuestions = [
+    { text: 'Should I buy a laptop for ₹80,000?', type: 'purchase' as const },
+    { text: 'How can I save more money?', type: 'general' as const },
+    { text: 'Analyze my spending patterns', type: 'spending' as const },
+    { text: 'Give me budget recommendations', type: 'budget' as const },
+  ];
+
   if (!isLoaded || !isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-blue-50/50">
@@ -127,6 +216,190 @@ export default function AIRecommendationsPage() {
               {refreshing ? 'Refreshing...' : 'Refresh'}
             </button>
           </div>
+        </div>
+
+        {/* AI Chat Assistant */}
+        <div className="mb-8">
+          {!showChat ? (
+            <button
+              onClick={() => setShowChat(true)}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="bg-white/20 p-4 rounded-full">
+                  <MessageCircle className="w-8 h-8" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-2xl font-bold mb-1">Chat with AI Financial Advisor</h2>
+                  <p className="text-purple-100">Ask questions about purchases, budgeting, and financial goals</p>
+                </div>
+              </div>
+              <ArrowRight className="w-8 h-8 group-hover:translate-x-2 transition-transform" />
+            </button>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+              {/* Chat Header */}
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Bot className="w-8 h-8" />
+                    <div>
+                      <h2 className="text-2xl font-bold">AI Financial Advisor</h2>
+                      <p className="text-purple-100 text-sm">Powered by Sanchay</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowChat(false)}
+                    className="hover:bg-white/20 p-2 rounded-lg transition"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Advisor Type Selector */}
+                <div className="flex gap-2 flex-wrap">
+                  {(['general', 'purchase', 'spending', 'budget'] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setAdvisorType(type)}
+                      className={`px-4 py-2 rounded-lg font-medium transition ${
+                        advisorType === type
+                          ? 'bg-white text-purple-600'
+                          : 'bg-white/20 text-white hover:bg-white/30'
+                      }`}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Financial Summary */}
+                {financialSummary && (
+                  <div className="mt-4 bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                    <h3 className="font-semibold mb-2">Your Financial Overview</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-purple-100">Goal</p>
+                        <p className="font-bold">{financialSummary.goal}</p>
+                      </div>
+                      <div>
+                        <p className="text-purple-100">Progress</p>
+                        <p className="font-bold">{financialSummary.progress}</p>
+                      </div>
+                      <div>
+                        <p className="text-purple-100">Monthly Income</p>
+                        <p className="font-bold">₹{financialSummary.monthlyIncome.toFixed(0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-purple-100">Savings Rate</p>
+                        <p className="font-bold">{financialSummary.savingsRate}%</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Messages */}
+              <div 
+                ref={chatContainerRef}
+                className="h-96 overflow-y-auto p-6 bg-gray-50"
+              >
+                {chatMessages.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Bot className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Start a Conversation</h3>
+                    <p className="text-gray-600 mb-6">Ask me anything about your finances!</p>
+                    
+                    <div className="grid md:grid-cols-2 gap-3 max-w-2xl mx-auto">
+                      {quickQuestions.map((q, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setAdvisorType(q.type);
+                            setChatInput(q.text);
+                          }}
+                          className="p-3 bg-white rounded-lg border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition text-left text-sm text-gray-900 font-medium"
+                        >
+                          <Lightbulb className="w-4 h-4 text-purple-500 inline mr-2" />
+                          {q.text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {chatMessages.map((message, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        {message.role === 'assistant' && (
+                          <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                            <Bot className="w-5 h-5 text-white" />
+                          </div>
+                        )}
+                        <div
+                          className={`max-w-[70%] p-4 rounded-2xl ${
+                            message.role === 'user'
+                              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                              : 'bg-white border border-gray-200 text-gray-900'
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap">{message.content}</p>
+                          <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-purple-100' : 'text-gray-400'}`}>
+                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        {message.role === 'user' && (
+                          <div className="flex-shrink-0 w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                            <User className="w-5 h-5 text-gray-600" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {chatLoading && (
+                      <div className="flex gap-3 justify-start">
+                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                          <Bot className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="bg-white border border-gray-200 p-4 rounded-2xl">
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Input */}
+              <div className="border-t border-gray-200 p-4 bg-white">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={`Ask about ${advisorType === 'purchase' ? 'a purchase decision' : advisorType === 'spending' ? 'your spending' : advisorType === 'budget' ? 'budgeting' : 'your finances'}...`}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                    disabled={chatLoading}
+                  />
+                  <button
+                    onClick={sendChatMessage}
+                    disabled={!chatInput.trim() || chatLoading}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Send className="w-5 h-5" />
+                    Send
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Savings Potential Card */}
