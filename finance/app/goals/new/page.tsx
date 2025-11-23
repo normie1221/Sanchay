@@ -16,10 +16,19 @@ export default function CreateGoalPage() {
     targetAmount: '',
     currentAmount: '',
     deadline: '',
-    category: 'Savings'
+    category: 'SAVINGS'
   });
 
-  const categories = ['Savings', 'Investment', 'Debt Payment', 'Emergency Fund', 'Education', 'Travel', 'Home', 'Car', 'Retirement', 'Other'];
+  const categories = [
+    { value: 'SAVINGS', label: 'Savings' },
+    { value: 'INVESTMENT', label: 'Investment' },
+    { value: 'DEBT_PAYMENT', label: 'Debt Payment' },
+    { value: 'EMERGENCY_FUND', label: 'Emergency Fund' },
+    { value: 'RETIREMENT', label: 'Retirement' },
+    { value: 'PURCHASE', label: 'Purchase' },
+    { value: 'EDUCATION', label: 'Education' },
+    { value: 'OTHER', label: 'Other' }
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,10 +104,10 @@ export default function CreateGoalPage() {
               required
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none text-gray-900"
             >
               {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
               ))}
             </select>
           </div>

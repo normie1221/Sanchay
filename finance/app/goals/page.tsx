@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { ArrowLeft, Plus, Target, TrendingUp, Calendar, DollarSign } from 'lucide-react';
+import { ArrowLeft, Plus, Target, TrendingUp, Calendar, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
 import { format, differenceInDays } from 'date-fns';
@@ -22,6 +22,9 @@ export default function GoalsPage() {
   const { isLoaded, isSignedIn } = useUser();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
+  const [fundAmount, setFundAmount] = useState('');
 
   useEffect(() => {
     if (isSignedIn) {
@@ -40,6 +43,36 @@ export default function GoalsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddFunds = async () => {
+    if (!selectedGoal || !fundAmount) return;
+
+    try {
+      const newCurrentAmount = (selectedGoal.currentAmount || 0) + parseFloat(fundAmount);
+      
+      await axios.patch(`/api/goals/${selectedGoal.id}`, {
+        currentAmount: newCurrentAmount
+      });
+
+      // Refresh goals
+      await fetchGoals();
+      
+      // Close modal and reset
+      setShowAddFundsModal(false);
+      setSelectedGoal(null);
+      setFundAmount('');
+      
+      alert('Funds added successfully! 🎉');
+    } catch (error) {
+      console.error('Error adding funds:', error);
+      alert('Failed to add funds. Please try again.');
+    }
+  };
+
+  const openAddFundsModal = (goal: Goal) => {
+    setSelectedGoal(goal);
+    setShowAddFundsModal(true);
   };
 
   const getProgressColor = (percentage: number) => {
@@ -200,7 +233,7 @@ export default function GoalsPage() {
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                       <div>
                         <div className="flex items-center gap-2 text-gray-600 mb-1">
-                          <DollarSign className="w-4 h-4" />
+                          <IndianRupee className="w-4 h-4" />
                           <span className="text-sm">Current</span>
                         </div>
                         <p className="text-xl font-bold text-green-600">
@@ -236,7 +269,10 @@ export default function GoalsPage() {
                     </div>
 
                     {percentage < 100 && (
-                      <button className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white py-2 rounded-lg font-semibold hover:shadow-lg transition">
+                      <button 
+                        onClick={() => openAddFundsModal(goal)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white py-2 rounded-lg font-semibold hover:shadow-lg transition"
+                      >
                         Add Funds
                       </button>
                     )}
@@ -257,6 +293,63 @@ export default function GoalsPage() {
             <li>• Celebrate milestones along the way to maintain momentum</li>
           </ul>
         </div>
+
+        {/* Add Funds Modal */}
+        {showAddFundsModal && selectedGoal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Add Funds to Goal</h2>
+              
+              <div className="mb-6">
+                <p className="text-gray-600 mb-2">Goal: <span className="font-semibold text-gray-900">{selectedGoal.name}</span></p>
+                <p className="text-gray-600 mb-2">Current Amount: <span className="font-semibold text-green-600">₹{(selectedGoal.currentAmount || 0).toFixed(2)}</span></p>
+                <p className="text-gray-600">Target Amount: <span className="font-semibold text-blue-600">₹{selectedGoal.targetAmount.toFixed(2)}</span></p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Amount to Add *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 font-semibold text-xl">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={fundAmount}
+                    onChange={(e) => setFundAmount(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-gray-900"
+                    placeholder="0.00"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  New total will be: ₹{((selectedGoal.currentAmount || 0) + parseFloat(fundAmount || '0')).toFixed(2)}
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setShowAddFundsModal(false);
+                    setSelectedGoal(null);
+                    setFundAmount('');
+                  }}
+                  className="flex-1 px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddFunds}
+                  disabled={!fundAmount || parseFloat(fundAmount) <= 0}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-500 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Funds
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

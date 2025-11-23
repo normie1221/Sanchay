@@ -1,9 +1,0 @@
-pandas
-numpy
-matplotlib
-seaborn
-scikit-learn
-flask
-requests
-dotenv
-langgraph
